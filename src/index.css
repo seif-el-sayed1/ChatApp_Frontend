@@ -1,1 +1,13 @@
 @import "tailwindcss";
+:root {
+    --primary-color: 160 84% 39%;      /* Emerald Green – Primary */
+    --secondary-color: 220 14% 92%;    /* Soft Gray – Secondary */
+    --accent-color: 160 60% 94%;       /* Light Emerald – Accent */
+    --background-color: 220 20% 97%;   /* Light Gray – Background */
+    --foreground-color: 220 25% 10%;   /* Near Black – Text */
+    --border-color: 220 13% 90%;       /* Light Border – Inputs/Cards */
+    --destructive-color: 0 72% 51%;    /* Red – Delete/Error */
+    --online-color: 142 71% 45%;       /* Green – Online Status */
+    --golden-color: 48 91% 55%;        /* Golden – Optional */
+    --hover-color: 0 0% 6%;            /* Hover – Optional */
+}
