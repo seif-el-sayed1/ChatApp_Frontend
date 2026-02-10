@@ -39,7 +39,67 @@ export const UserAuthProvider = ({ children }) => {
         }
     }, []);
 
- 
+    // Handle Login
+    const handleLogin = async (email, password) => {
+        setError("");
+        setLoading(true);
+
+        try {
+            const data = await loginUser(email, password);
+
+            if (data.success) {
+                if (data.message === "Verification OTP is sent to your Email") {
+                    setUserEmail(email);
+                    setShowOtpModal(true);
+                } else {
+                    localStorage.setItem("token", data.data.token);
+                    localStorage.setItem("user", JSON.stringify(data.data));
+                    setToken(data.data.token);
+                    setUser(data.data);
+                    navigate("/home");
+                }
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || "Login failed. Please try again.");
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Handle Register
+    const handleRegister = async (formData, profileImage) => {
+        setError("");
+        setLoading(true);
+
+        try {
+            const profilePicture = await uploadImageToBase64(profileImage);
+
+            const userData = {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                email: formData.email,
+                password: formData.password,
+                gender: formData.gender,
+                dateOfBirth: formData.dateOfBirth,
+                profilePicture: profilePicture,
+                loginType: "email"
+            };
+
+            const data = await registerUser(userData);
+
+            if (data.success) {
+                setUserEmail(formData.email);
+                setShowOtpModal(true);
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || "Registration failed. Please try again.");
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    };
+
 
     const value = {
         user,
@@ -50,6 +110,8 @@ export const UserAuthProvider = ({ children }) => {
         showOtpModal,
         setShowOtpModal,
         userEmail,
+        handleLogin,
+        handleRegister,
     };
 
     return (
