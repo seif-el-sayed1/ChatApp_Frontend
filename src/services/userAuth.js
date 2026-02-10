@@ -41,3 +41,16 @@ export const resendOtp = async (email) => {
     });
     return response.data;
 };
+
+// Upload image to base64
+export const uploadImageToBase64 = async (file) => {
+    if (!file) return null;
+    
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            resolve(reader.result);
+        };
+        reader.readAsDataURL(file);
+    });
+};
