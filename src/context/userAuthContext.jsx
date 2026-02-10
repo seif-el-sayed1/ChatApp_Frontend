@@ -100,6 +100,54 @@ export const UserAuthProvider = ({ children }) => {
         }
     };
 
+    // Handle Verify OTP
+    const handleVerifyOtp = async (otp) => {
+        setError("");
+        setLoading(true);
+
+        try {
+            const data = await verifyOtp(userEmail, otp);
+
+            if (data.success) {
+                localStorage.setItem("token", data.data.token);
+                localStorage.setItem("user", JSON.stringify(data.data));
+                setToken(data.data.token);
+                setUser(data.data);
+                setShowOtpModal(false);
+                navigate("/home");
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || "OTP verification failed");
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Handle Resend OTP
+    const handleResendOtp = async () => {
+        setLoading(true);
+        setError("");
+        
+        try {
+            await resendOtp(userEmail);
+            alert("OTP sent successfully!");
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to resend OTP");
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Handle Logout ---
+    const handleLogout = () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setToken(null);
+        setUser(null);
+        navigate("/");
+    };
 
     const value = {
         user,
@@ -112,6 +160,9 @@ export const UserAuthProvider = ({ children }) => {
         userEmail,
         handleLogin,
         handleRegister,
+        handleVerifyOtp,
+        handleResendOtp,
+        handleLogout
     };
 
     return (
