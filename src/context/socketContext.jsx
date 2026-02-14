@@ -66,4 +66,9 @@ export const SocketProvider = ({ children, token }) => {
     }
   };
 
+  // Helper functions for subscribing/unsubscribing events
+  const on  = (event, cb) => socketRef.current?.on(event, cb);
+  const off = (event, cb) => socketRef.current?.off(event, cb);
+  
+  
 };
