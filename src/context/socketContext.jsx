@@ -56,5 +56,14 @@ export const SocketProvider = ({ children, token }) => {
     };
   }, [token]);
 
+  // Emit a socket event safely (only if connected)
+  const emit = (event, data) => {
+    const s = socketRef.current;
+    if (s?.connected) {
+      s.emit(event, data);
+    } else {
+      console.warn(`⚠️ Socket not connected — cannot emit "${event}"`);
+    }
+  };
 
 };
