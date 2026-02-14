@@ -70,5 +70,35 @@ export const SocketProvider = ({ children, token }) => {
   const on  = (event, cb) => socketRef.current?.on(event, cb);
   const off = (event, cb) => socketRef.current?.off(event, cb);
   
-  
+  // Custom socket actions for chat
+  const joinChat = (chatId) => emit("join-chat", { chatId });
+  const leaveChat = (chatId) => emit("leave-chat", { chatId });
+  const sendMessage = (payload) => emit("new-message", payload);
+  const startTyping = (chatId) => emit("typing", { chatId });
+  const stopTyping = (chatId) => emit("stop-typing", { chatId });
+  const markMsgDelivered = (messageId) => emit("message-delivered", { messageId });
+
+  // Check if a user is online
+  const isUserOnline = (userId) => !!userId && onlineUsers.includes(userId.toString());
+
+  const value = {
+      isConnected,
+      onlineUsers,
+      isUserOnline,
+      on,
+      off,
+      emit,      
+      joinChat,
+      leaveChat,
+      sendMessage,      
+      startTyping,
+      stopTyping,
+      markMsgDelivered
+  }
+
+  return (
+    <SocketContext.Provider value={value}>
+      {children}
+    </SocketContext.Provider>
+  );
 };
