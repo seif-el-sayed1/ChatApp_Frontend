@@ -1,11 +1,12 @@
+import { AppRoutes } from './routes'
+import { Toaster } from "react-hot-toast";
 
 function App() {
 
   return (
     <>
-      <div className="font-bold text-2xl text-red-500">
-        hello world
-      </div>
+      <Toaster position="top-right" reverseOrder={false} />
+      <AppRoutes />
     </>
   )
 }
