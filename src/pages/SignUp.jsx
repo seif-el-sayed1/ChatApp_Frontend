@@ -1,21 +1,120 @@
 import { useState } from "react";
+import { UserAuth } from "../context/userAuthContext";
 
 export const SignUp = () => {
+    const {
+        loading,
+        error,
+        setError,
+        showOtpModal,
+        userEmail,
+        handleLogin,
+        handleRegister,
+        handleVerifyOtp,
+        handleResendOtp
+    } = UserAuth();
+
     const [isLogin, setIsLogin] = useState(true);
-    const [profileImage, setProfileImage] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [otp, setOtp] = useState("");
+
+    // Form data state
+    const [formData, setFormData] = useState({
+        firstName: "",
+        lastName: "",
+        email: "",
+        profilePicture: null,
+        password: "",
+        confirmPassword: "",
+        gender: "male",
+        dateOfBirth: ""
+    });
+
+
+    const handleInputChange = (e) => {
+        setFormData({
+            ...formData,
+            [e.target.name]: e.target.value
+        });
+        setError("");
+    };
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            setProfileImage(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result);
-            };
-            reader.readAsDataURL(file);
+            setFormData({ ...formData, profilePicture: file });
+            setImagePreview(URL.createObjectURL(file));
+        }
+    };
+
+    // Login Handler
+    const onLoginSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await handleLogin(formData.email, formData.password);
+        } catch (err) {
+            setError(err.response?.data?.message || "Registration failed. Please try again.");
+            
+        }
+    };
+
+    // Register Handler
+    const onRegisterSubmit = async (e) => {
+        e.preventDefault();
+        setError("");
+
+        // Validation
+        if (!formData.firstName || !formData.lastName) {
+            setError("Please enter your first and last name");
+            return;
+        }
+
+        if (!formData.email) {
+            setError("Please enter your email");
+            return;
+        }
+
+        if (!formData.dateOfBirth) {
+            setError("Please enter your date of birth");
+            return;
+        }
+
+        if (formData.password.length < 6) {
+            setError("Password must be at least 6 characters");
+            return;
+        }
+
+        if (formData.password !== formData.confirmPassword) {
+            setError("Passwords do not match");
+            return;
+        }
+
+        try {
+            const data = new FormData();
+            data.append("firstName", formData.firstName);
+            data.append("lastName", formData.lastName);
+            data.append("email", formData.email);
+            data.append("password", formData.password);
+            data.append("gender", formData.gender);
+            data.append("dateOfBirth", formData.dateOfBirth);
+            if (formData.profilePicture) {
+                data.append("profilePicture", formData.profilePicture);
+            }
+            await handleRegister(data);
+        } catch (err) {
+            setError(err.response?.data?.message || "Registration failed. Please try again.");
+        }
+    };
+
+    // Verify OTP Handler
+    const onVerifyOtpSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await handleVerifyOtp(otp);
+        } catch (err) {
+            setError(err.response?.data?.message || "Registration failed. Please try again.");
         }
     };
 
@@ -23,7 +122,6 @@ export const SignUp = () => {
         <div className="flex justify-center min-h-screen">
             {/*LEFT*/}
             <div className="hidden lg:flex flex-col min-h-screen w-1/2 justify-center items-center bg-[hsl(var(--secondary-color))] px-8">
-                {/* logo */}
                 <div className="shadow-[0_4px_6px_-1px_hsl(var(--primary-color))] bg-[hsl(var(--primary-color))] flex items-center justify-center w-20 h-20 rounded-2xl mb-3 glow-primary">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle w-10 h-10">
                         <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
@@ -47,7 +145,10 @@ export const SignUp = () => {
                     <h2 className="font-semibold text-3xl text-center">Chat Me</h2>
                 </div>
 
-                <form className="w-full max-w-md flex flex-col gap-4">
+                <form 
+                    onSubmit={isLogin ? onLoginSubmit : onRegisterSubmit}
+                    className="w-full max-w-md flex flex-col gap-4"
+                >
                     <div className="flex flex-col mb-2">
                         <h3 className="text-2xl mb-2 font-bold">
                             {isLogin ? "Welcome back" : "Create Your Account"}
@@ -56,8 +157,15 @@ export const SignUp = () => {
                             {isLogin ? "Sign in to continue your conversations" : "Start chatting in seconds"}
                         </p>
                     </div>
+
+                    {/* Error Message */}
+                    {error && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl">
+                            {error}
+                        </div>
+                    )}
                     
-                    {/* Profile image */}
+                    {/* Profile Image Upload */}
                     {!isLogin && (
                         <div className="w-full flex flex-col items-center gap-3 mb-2">
                             <div className="relative">
@@ -103,12 +211,16 @@ export const SignUp = () => {
                             {/* first name */}
                             <div className="w-full flex flex-col gap-1">
                                 <label htmlFor="firstName">First Name</label>
-                                <div className="bg-gray-200 rounded-2xl border-3 border-transparent p-[2.25px] focus-within:border-[hsl(var(--primary-color))] transition-colors duration-200">
+                                <div className="bg-gray-200 rounded-2xl border-3 border-transparent p-[2.25px] focus-within:border-[hsl(var(--primary-color))] c">
                                     <input 
                                         className="w-full py-3 px-4 placeholder:text-sm outline-none rounded-xl border border-transparent focus:border-[hsl(var(--primary-color))] transition-colors duration-200"  
                                         type="text"
-                                        id="firstName" 
+                                        id="firstName"
+                                        name="firstName"
+                                        value={formData.firstName}
+                                        onChange={handleInputChange}
                                         placeholder="First Name"
+                                        required={!isLogin}
                                     />
                                 </div>
                             </div>
@@ -120,9 +232,52 @@ export const SignUp = () => {
                                     <input 
                                         className="w-full py-3 px-4 placeholder:text-sm outline-none rounded-xl border border-transparent focus:border-[hsl(var(--primary-color))] transition-colors duration-200"  
                                         type="text"
-                                        id="lastName" 
+                                        id="lastName"
+                                        name="lastName"
+                                        value={formData.lastName}
+                                        onChange={handleInputChange}
                                         placeholder="Last Name"
+                                        required={!isLogin}
                                     />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Date of Birth & Gender */}
+                    {!isLogin && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Date of Birth */}
+                            <div className="w-full flex flex-col gap-1">
+                                <label htmlFor="dateOfBirth">Date of Birth</label>
+                                <div className="bg-gray-200 rounded-2xl border-3 border-transparent p-[2.25px] focus-within:border-[hsl(var(--primary-color))] transition-colors duration-200">
+                                    <input 
+                                        className="w-full py-3 px-4 placeholder:text-sm outline-none rounded-xl border border-transparent focus:border-[hsl(var(--primary-color))] transition-colors duration-200"  
+                                        type="date"
+                                        id="dateOfBirth"
+                                        name="dateOfBirth"
+                                        value={formData.dateOfBirth}
+                                        onChange={handleInputChange}
+                                        required={!isLogin}
+                                    />
+                                </div>
+                            </div>
+                            
+                            {/* Gender */}
+                            <div className="w-full flex flex-col gap-1">
+                                <label htmlFor="gender">Gender</label>
+                                <div className="bg-gray-200 rounded-2xl border-3 border-transparent p-[2.25px] focus-within:border-[hsl(var(--primary-color))] transition-colors duration-200">
+                                    <select 
+                                        className="w-full py-3 px-4 placeholder:text-sm outline-none rounded-xl border border-transparent focus:border-[hsl(var(--primary-color))] transition-colors duration-200 bg-white"  
+                                        id="gender"
+                                        name="gender"
+                                        value={formData.gender}
+                                        onChange={handleInputChange}
+                                        required={!isLogin}
+                                    >
+                                        <option value="male">Male</option>
+                                        <option value="female">Female</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -135,8 +290,12 @@ export const SignUp = () => {
                             <input 
                                 className="w-full py-3 px-4 placeholder:text-sm outline-none rounded-xl border border-transparent focus:border-[hsl(var(--primary-color))] transition-colors duration-200"  
                                 type="email"
-                                id="email" 
+                                id="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleInputChange}
                                 placeholder="you@example.com"
+                                required
                             />
                         </div>
                     </div>
@@ -149,7 +308,10 @@ export const SignUp = () => {
                                 <input 
                                     className="w-full py-3 px-4 pr-12 placeholder:text-sm outline-none rounded-xl border border-transparent focus:border-[hsl(var(--primary-color))] transition-colors duration-200"  
                                     type={showPassword ? "text" : "password"}
-                                    id="password" 
+                                    id="password"
+                                    name="password"
+                                    value={formData.password}
+                                    onChange={handleInputChange}
                                     placeholder="********"
                                     required
                                 />
@@ -159,13 +321,11 @@ export const SignUp = () => {
                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
                                 >
                                     {showPassword ? (
-                                        // Eye Off Icon
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
                                             <line x1="2" y1="2" x2="22" y2="22"></line>
                                         </svg>
                                     ) : (
-                                        // Eye Icon
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
                                             <circle cx="12" cy="12" r="3"></circle>
@@ -185,9 +345,12 @@ export const SignUp = () => {
                                     <input 
                                         className="w-full py-3 px-4 pr-12 placeholder:text-sm outline-none rounded-xl border border-transparent focus:border-[hsl(var(--primary-color))] transition-colors duration-200"  
                                         type={showConfirmPassword ? "text" : "password"}
-                                        id="confirmPassword" 
+                                        id="confirmPassword"
+                                        name="confirmPassword"
+                                        value={formData.confirmPassword}
+                                        onChange={handleInputChange}
                                         placeholder="********"
-                                        required
+                                        required={!isLogin}
                                     />
                                     <button
                                         type="button"
@@ -195,13 +358,11 @@ export const SignUp = () => {
                                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
                                     >
                                         {showConfirmPassword ? (
-                                            // Eye Off Icon
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                 <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
                                                 <line x1="2" y1="2" x2="22" y2="22"></line>
                                             </svg>
                                         ) : (
-                                            // Eye Icon
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                 <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
                                                 <circle cx="12" cy="12" r="3"></circle>
@@ -222,9 +383,10 @@ export const SignUp = () => {
                     
                     <button 
                         type="submit"
-                        className="bg-[hsl(var(--primary-color))] text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity mt-2"
+                        disabled={loading}
+                        className="bg-[hsl(var(--primary-color))] text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {isLogin ? "Sign In" : "Create Account"}
+                        {loading ? "Loading..." : (isLogin ? "Sign In" : "Create Account")}
                     </button>
                     
                     <p className="text-gray-600 text-center text-sm">
@@ -233,7 +395,10 @@ export const SignUp = () => {
                                 Don't have an account?{' '}
                                 <button
                                     type="button"
-                                    onClick={() => setIsLogin(!isLogin)}
+                                    onClick={() => {
+                                        setIsLogin(!isLogin);
+                                        setError("");
+                                    }}
                                     className="font-semibold text-[hsl(var(--primary-color))] hover:underline cursor-pointer"
                                 >
                                     Create Account
@@ -244,7 +409,10 @@ export const SignUp = () => {
                                 Already have an account?{' '}
                                 <button
                                     type="button"
-                                    onClick={() => setIsLogin(!isLogin)}
+                                    onClick={() => {
+                                        setIsLogin(!isLogin);
+                                        setError("");
+                                    }}
                                     className="font-semibold text-[hsl(var(--primary-color))] hover:underline cursor-pointer"
                                 >
                                     Sign In
@@ -253,7 +421,58 @@ export const SignUp = () => {
                         )}
                     </p>
                 </form>
-            </div>            
+            </div>
+
+            {/* OTP Modal */}
+            {showOtpModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+                    <div className="bg-white rounded-2xl p-8 max-w-md w-full">
+                        <h3 className="text-2xl font-bold mb-4">Verify Your Email</h3>
+                        <p className="text-gray-600 mb-6">
+                            We've sent a verification code to <strong>{userEmail}</strong>
+                        </p>
+                        
+                        {error && (
+                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl mb-4">
+                                {error}
+                            </div>
+                        )}
+                        
+                        <form onSubmit={onVerifyOtpSubmit}>
+                            <div className="mb-6">
+                                <label htmlFor="otp" className="block mb-2 font-medium">Enter OTP</label>
+                                <input
+                                    type="text"
+                                    id="otp"
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value)}
+                                    placeholder="Enter 6-digit code"
+                                    maxLength="6"
+                                    className="w-full py-3 px-4 border-2 border-gray-300 rounded-xl focus:border-[hsl(var(--primary-color))] outline-none text-center text-2xl tracking-widest"
+                                    required
+                                />
+                            </div>
+                            
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-[hsl(var(--primary-color))] text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 mb-3"
+                            >
+                                {loading ? "Verifying..." : "Verify"}
+                            </button>
+                            
+                            <button
+                                type="button"
+                                onClick={handleResendOtp}
+                                disabled={loading}
+                                className="w-full text-[hsl(var(--primary-color))] py-2 rounded-xl font-semibold hover:underline"
+                            >
+                                Resend OTP
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
-    )
-}
+    );
+};
