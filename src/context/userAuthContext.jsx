@@ -6,7 +6,7 @@ import {
     verifyOtp, 
     resendOtp,
     uploadImageToBase64 
-} from "../services/userAuth";
+} from "../services/userAuthService";
 
 const UserAuthContext = createContext();
 
@@ -15,7 +15,7 @@ export const UserAuth = () => {
     if (!context) {
         throw new Error("useUserAuth must be used within UserAuthProvider");
     }
-    return context;
+    return context; 
 };
 
 export const UserAuthProvider = ({ children }) => {
@@ -56,7 +56,8 @@ export const UserAuthProvider = ({ children }) => {
                     localStorage.setItem("user", JSON.stringify(data.data));
                     setToken(data.data.token);
                     setUser(data.data);
-                    navigate("/home");
+                    navigate("/chats");
+                    window.location.reload();
                 }
             }
         } catch (err) {
@@ -114,7 +115,8 @@ export const UserAuthProvider = ({ children }) => {
                 setToken(data.data.token);
                 setUser(data.data);
                 setShowOtpModal(false);
-                navigate("/home");
+                navigate("/chats");
+                window.location.reload();
             }
         } catch (err) {
             setError(err.response?.data?.message || "OTP verification failed");
