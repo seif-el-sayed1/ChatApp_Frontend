@@ -4,8 +4,7 @@ import {
     loginUser, 
     registerUser, 
     verifyOtp, 
-    resendOtp,
-    uploadImageToBase64 
+    resendOtp, 
 } from "../services/userAuthService";
 
 const UserAuthContext = createContext();
@@ -69,37 +68,25 @@ export const UserAuthProvider = ({ children }) => {
     };
 
     // Handle Register
-    const handleRegister = async (formData, profileImage) => {
+    const handleRegister = async (formData) => {
         setError("");
         setLoading(true);
 
         try {
-            const profilePicture = await uploadImageToBase64(profileImage);
-
-            const userData = {
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                email: formData.email,
-                password: formData.password,
-                gender: formData.gender,
-                dateOfBirth: formData.dateOfBirth,
-                profilePicture: profilePicture,
-                loginType: "email"
-            };
-
-            const data = await registerUser(userData);
+            const data = await registerUser(formData);
 
             if (data.success) {
-                setUserEmail(formData.email);
+                setUserEmail(formData.get("email"));
                 setShowOtpModal(true);
             }
         } catch (err) {
-            setError(err.response?.data?.message || "Registration failed. Please try again.");
+            setError(err.response?.data?.message || "Registration failed.");
             throw err;
         } finally {
             setLoading(false);
         }
     };
+
 
     // Handle Verify OTP
     const handleVerifyOtp = async (otp) => {
