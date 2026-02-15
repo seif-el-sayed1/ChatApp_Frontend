@@ -13,3 +13,13 @@ api.interceptors.request.use((config) => {
     if (token) config.headers["Authorization"] = token;
     return config;
 });
+
+export const blockUser = async (id) => {
+    const response = await api.post(`/${id}/block`);
+    return response.data;
+};
+
+export const unblockUser = async (id) => {
+    const response = await api.post(`/${id}/unblock`);
+    return response.data;
+};
