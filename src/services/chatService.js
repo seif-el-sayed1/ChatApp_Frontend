@@ -10,3 +10,25 @@ const api = axios.create({
         "Content-Type": "application/json"
     }
 });
+
+// interceptor
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+        config.headers["Authorization"] = token;
+    }
+    return config;
+});
+
+// get users for chat
+export const getAllUsers = async (page, limit, search) => {
+    const response = await api.get(`/users?page=${page}&limit=${limit}&search=${search}`);
+    return response.data;
+};
+
+// get my chats
+export const getMyChats = async (page, limit, search) => {
+    const response = await api.get(`?page=${page}&limit=${limit}&search=${search}`);
+    return response.data;
+};
+
