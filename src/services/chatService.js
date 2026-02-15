@@ -32,3 +32,15 @@ export const getMyChats = async (page, limit, search) => {
     return response.data;
 };
 
+// get one chat
+export const getOneChat = async (id, noOfMessages) => {
+    const response = await api.get(`/${id}?noOfMessages=${noOfMessages}`);
+    return response.data;
+};
+
+// get chat messages
+export const getChatMessages = async (id, page, limit = 20) => {
+    const response = await api.get(`/${id}/messages?page=${page}&limit=${limit}`);
+    return response.data;
+};
+
