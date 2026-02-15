@@ -44,3 +44,23 @@ export const getChatMessages = async (id, page, limit = 20) => {
     return response.data;
 };
 
+// send media message
+export const sendMediaMessage = async ({ media, receiverId, chatId }) => {
+    const response = await api.post(`/`, media, {
+        headers: {
+            "Content-Type": "multipart/form-data"
+        },
+        params: { receiverId, chatId }
+    });
+    return response.data;
+};
+
+// clear
+export const clearChat = async (id) => {
+    const response = await api.patch(`/clear/${id}`);
+    if (response.data.success) {
+        toast.success(response.data.message);
+    } else {
+        toast.error(response.data.message);
+    }
+};
