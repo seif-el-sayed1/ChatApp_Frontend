@@ -201,6 +201,35 @@ export const ChatProvider = ({ children }) => {
         };
     }, [socket?.isConnected]);
 
+    // APIs 
+    const handleGetAllUsers = async (page = 1, limit = 10, search = "") => {
+        setLoading(true);
+        try {
+            const res = await getAllUsers(page, limit, search);
+            if (res?.success)
+                setAllUsers(page === 1 ? res.data : (p) => [...p, ...res.data]);
+        } catch (e) { console.error(e); }
+        finally { setLoading(false); }
+    };
+
+    const handleGetMyChats = async (page = 1, limit = 10, search = "") => {
+        setLoading(true);
+        try {
+            const res = await getMyChats(page, limit, search);
+            if (res?.success) {
+                if (res.pagination) setChatsPagination(res.pagination);
+                const data = res.data;
+                if (page === 1) setChats(data);
+                else setChats((prev) => {
+                    const ids = new Set(prev.map((c) => c._id));
+                    return [...prev, ...data.filter((c) => !ids.has(c._id))];
+                });
+                for (const chat of data) detectMyId(chat.messages || []);
+            }
+        } catch (e) { console.error(e); }
+        finally { setLoading(false); }
+    };
+
 
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
