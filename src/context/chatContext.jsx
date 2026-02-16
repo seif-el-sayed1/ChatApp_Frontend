@@ -174,6 +174,21 @@ export const ChatProvider = ({ children }) => {
             if (newChat.messages?.[0]?.isMyMsg) setOneChat(newChat);
         });
 
+        socket.on("message-delivered", ({ chatId, messageTime }) => {
+            const cid = norm(chatId);
+            const upd = (msgs) => markUpTo(msgs, messageTime, { delivered: true });
+            setChats((p) => p.map((c) => norm(c._id) === cid ? { ...c, messages: upd(c.messages) } : c));
+            setOneChat((p) => p && norm(p._id) === cid ? { ...p, messages: upd(p.messages) } : p);
+        });
+
+        socket.on("messages-seen", ({ chatId, seenTime }) => {
+            const cid = norm(chatId);
+            const upd = (msgs) => markUpTo(msgs, seenTime, { seen: true });
+            setChats((p) => p.map((c) => norm(c._id) === cid ? { ...c, messages: upd(c.messages) } : c));
+            setOneChat((p) => p && norm(p._id) === cid ? { ...p, messages: upd(p.messages) } : p);
+        });
+
+        
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
