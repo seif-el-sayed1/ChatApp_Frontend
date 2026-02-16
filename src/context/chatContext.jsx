@@ -84,5 +84,46 @@ export const ChatProvider = ({ children }) => {
             };
     });
 
+    // Socket event handlers
+    useEffect(() => {
+        if (!socket?.isConnected) return;
+
+        socket.on("message", (msg) => {
+            const chatId = norm(msg.chat);
+
+            // Mark as delivered if incoming
+            if (!msg.isMyMsg && !msg.isDelivered && msg.type !== "label") {
+                socket.emit("message-delivered", { messageId: msg._id });
+            }
+
+            const nowBlocked = msg.content === "blocked";
+            const blockedBy  = msg.isMyMsg ? "me" : "them";
+
+            const applyBlock = (obj) => ({
+                ...obj,
+                isBlocked: nowBlocked,
+                blockedBy: nowBlocked ? blockedBy : null,
+            });
+
+            const isTargetChat = (c) =>
+                norm(c._id) === chatId ||
+                norm(c._id) === norm(msg.chat?._id ?? msg.chat) ||
+                norm(c.to?._id) === norm(msg.sender?._id ?? msg.sender);
+
+            // Update chats list for block status
+            setChats((prev) =>
+                prev.map((c) => isTargetChat(c) ? applyBlock(c) : c)
+            );
+
+            // Update currently open chat for block
+            setOneChat((prev) => {
+                if (!prev) return prev;
+                const matchById = norm(prev._id) === chatId ||
+                                norm(prev._id) === norm(msg.chat?._id ?? msg.chat);
+                const matchByUser = norm(prev.to?._id) === norm(msg.sender?._id ?? msg.sender);
+                if (!matchById && !matchByUser) return prev;
+                return applyBlock(prev);
+            });
+            
 
 };
