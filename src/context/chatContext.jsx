@@ -276,6 +276,66 @@ export const ChatProvider = ({ children }) => {
         finally { setLoading(false); }
     };
 
+    // ── send media ────────────────────────────────────────────────────────────
+    const handleSendMedia = async ({ files, chatId, receiverId }) => {
+        if (!files?.length) return;
+
+        const previews = files.map((f, i) => ({
+            _id: `temp_img_${Date.now()}_${i}`,
+            chat: chatId,
+            content: URL.createObjectURL(f),
+            type: "image",
+            isMyMsg: true,
+            isDelivered: false,
+            isRead: false,
+            createdAt: new Date().toISOString(),
+            _isBlob: true,
+        }));
+        previews.forEach((p) => addOptimisticMessage(p));
+
+        try {
+            const formData = new FormData();
+            files.forEach((f) => formData.append("media", f));
+            if (chatId)     formData.append("chatId",     chatId);
+            if (receiverId) formData.append("receiverId", receiverId);
+
+            const res = await sendMediaMessage({ media: formData, chatId, receiverId });
+
+            if (res?.success && res?.messages) {
+                setOneChat((prev) => {
+                    if (!prev) return prev;
+                    const withoutTemps = (prev.messages || []).filter(
+                        (m) => !previews.some((p) => p._id === m._id)
+                    );
+                    return { ...prev, messages: sortAsc(withoutTemps) };
+                });
+
+                if (chatId) {
+                    const lastRealMessage = res.messages[res.messages.length - 1];
+                    if (lastRealMessage) {
+                        setChats((prevChats) => {
+                            const chatIndex = prevChats.findIndex((c) => norm(c._id) === norm(chatId));
+                            if (chatIndex === -1) return prevChats;
+                            const updatedChats = [...prevChats];
+                            const targetChat   = { ...updatedChats[chatIndex] };
+                            if (!targetChat.lastMessageCreatedAt ||
+                                new Date(lastRealMessage.createdAt) > new Date(targetChat.lastMessageCreatedAt)) {
+                                targetChat.lastMessageCreatedAt = lastRealMessage.createdAt;
+                            }
+                            updatedChats.splice(chatIndex, 1);
+                            return [targetChat, ...updatedChats];
+                        });
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("sendMedia error:", e);
+            setOneChat((prev) => {
+                if (!prev) return prev;
+                return { ...prev, messages: (prev.messages || []).filter((m) => !previews.some((p) => p._id === m._id)) };
+            });
+        }
+    };
 
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
