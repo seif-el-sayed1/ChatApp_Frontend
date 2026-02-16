@@ -188,7 +188,20 @@ export const ChatProvider = ({ children }) => {
             setOneChat((p) => p && norm(p._id) === cid ? { ...p, messages: upd(p.messages) } : p);
         });
 
-        
+        socket.on("typing", ({ chatId, userId, userName }) =>
+            setTypingUsers((p) => ({ ...p, [norm(chatId)]: { userId, userName } }))
+        );
+        socket.on("stop-typing", ({ chatId }) =>
+            setTypingUsers((p) => { const n = { ...p }; delete n[norm(chatId)]; return n; })
+        );
+
+        return () => {
+            ["message","new-chat","message-delivered","messages-seen","typing","stop-typing"]
+                .forEach((e) => socket.off(e));
+        };
+    }, [socket?.isConnected]);
+
+
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
