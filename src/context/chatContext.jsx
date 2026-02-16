@@ -389,6 +389,43 @@ export const ChatProvider = ({ children }) => {
         }
     };
 
+    const handleUnblock = async (userId) => {
+        setBlockActionLoading(true);
+        try {
+            const res = await unblockUser(userId);
+            if (res?.success) {
+                setChats((prev) =>
+                    prev.map((c) =>
+                        norm(c.to?._id) === norm(userId)
+                            ? { ...c, isBlocked: false, blockedBy: null }
+                            : c
+                    )
+                );
+                setOneChat((prev) =>
+                    prev && norm(prev.to?._id) === norm(userId)
+                        ? { ...prev, isBlocked: false, blockedBy: null }
+                        : prev
+                );
+            }
+            return res;
+        } catch (e) {
+            console.error("unblockUser error:", e);
+            throw e;
+        } finally {
+            setBlockActionLoading(false);
+        }
+    };
+
+    const value = {
+        loading, chats, chatsPagination, oneChat,
+        allUsers, messagesPagination, typingUsers,
+        blockActionLoading,
+        handleGetAllUsers, handleGetMyChats,
+        handleGetOneChat, handleGetChatMessages,
+        handleSendMedia, addOptimisticMessage,
+        markMessagesAsRead, resetOneChat, clearActiveChat,
+        handleBlock, handleUnblock
+    };
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
