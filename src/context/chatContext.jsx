@@ -162,6 +162,17 @@ export const ChatProvider = ({ children }) => {
             });
         });
 
+        socket.on("new-chat", (newChat) => {
+            // Update the chats list in the sidebar
+            setChats((prev) => {
+                // If the chat already exists, do nothing
+                if (prev.some((c) => norm(c._id) === norm(newChat._id))) return prev;
+                // Otherwise, add the new chat to the top
+                return [newChat, ...prev];
+            });
+            // If the first message in the new chat was sent by me, open this chat
+            if (newChat.messages?.[0]?.isMyMsg) setOneChat(newChat);
+        });
 
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
