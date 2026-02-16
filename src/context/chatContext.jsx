@@ -337,6 +337,58 @@ export const ChatProvider = ({ children }) => {
         }
     };
 
+    const addOptimisticMessage = (tempMsg) => {
+        setOneChat((prev) => {
+            if (!prev) return prev;
+            return { ...prev, messages: [...(prev.messages || []), tempMsg] };
+        });
+    };
+
+    const markMessagesAsRead = (chatId) => {
+        activeChatIdRef.current = chatId;
+        setChats((prev) =>
+            prev.map((c) => norm(c._id) === norm(chatId) ? { ...c, unreadMessagesCount: 0 } : c)
+        );
+    };
+
+    const resetOneChat = () => {
+        activeChatIdRef.current = null;
+        setOneChat(null);
+        setMessagesPagination(null);
+    };
+
+    const clearActiveChat = () => {
+        activeChatIdRef.current = null;
+    };
+
+    // ── block / unblock ───────────────────────────────────────────────────────
+    const handleBlock = async (userId) => {
+        setBlockActionLoading(true);
+        try {
+            const res = await blockUser(userId);
+            if (res?.success) {
+                setChats((prev) =>
+                    prev.map((c) =>
+                        norm(c.to?._id) === norm(userId)
+                            ? { ...c, isBlocked: true, blockedBy: "me" }
+                            : c
+                    )
+                );
+                setOneChat((prev) =>
+                    prev && norm(prev.to?._id) === norm(userId)
+                        ? { ...prev, isBlocked: true, blockedBy: "me" }
+                        : prev
+                );
+            }
+            return res;
+        } catch (e) {
+            console.error("blockUser error:", e);
+            throw e;
+        } finally {
+            setBlockActionLoading(false);
+        }
+    };
+
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
