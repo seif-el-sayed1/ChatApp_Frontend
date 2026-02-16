@@ -230,6 +230,52 @@ export const ChatProvider = ({ children }) => {
         finally { setLoading(false); }
     };
 
+    const handleGetOneChat = async (id, noOfMessages) => {
+        setLoading(true);
+        try {
+            const res = await getOneChat(id, noOfMessages);
+            if (res?.success) {
+                const raw = res.data;
+                // Backend returns: blocked, blockedByMe, blockedByOtherUser
+                // We map them to our standard: isBlocked, blockedBy
+                const blockState = {
+                    isBlocked: raw.blocked ?? false,
+                    blockedBy: raw.blockedByMe ? "me" : raw.blockedByOtherUser ? "them" : null,
+                };
+                const data = {
+                    ...raw,
+                    messages: sortAsc(raw.messages || []),
+                    ...blockState,
+                };
+                detectMyId(data.messages);
+                setOneChat(data);
+                setMessagesPagination(null);
+            }
+        } catch (e) { console.error(e); }
+        finally { setLoading(false); }
+    };
+
+    const handleGetChatMessages = async (id, page = 1, limit = 20) => {
+        setLoading(true);
+        try {
+            const res = await getChatMessages(id, page, limit);
+            if (res?.success) {
+                if (res.pagination) setMessagesPagination(res.pagination);
+                const newMsgs = sortAsc(res.data || []);
+                detectMyId(newMsgs);
+
+                setOneChat((prev) => {
+                    const base = prev || { _id: id };
+                    if (page === 1) return { ...base, messages: newMsgs };
+                    const existingIds = new Set((base.messages || []).map((m) => norm(m._id)));
+                    const uniqueNew   = newMsgs.filter((m) => !existingIds.has(norm(m._id)));
+                    return { ...base, messages: sortAsc([...uniqueNew, ...(base.messages || [])]) };
+                });
+            }
+        } catch (e) { console.error(e); }
+        finally { setLoading(false); }
+    };
+
 
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
