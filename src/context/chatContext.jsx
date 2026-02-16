@@ -29,5 +29,60 @@ export const ChatProvider = ({ children }) => {
     const activeChatIdRef = useRef(null);
     const myUserIdRef = useRef(null); 
 
-   
+    // Utility function to normalize IDs as strings
+    const norm = (id) => id?.toString?.() ?? String(id ?? "");
+
+    // Check if a message belongs to the current user
+    const isMine = (msg) => {
+        if (typeof msg.isMyMsg === "boolean") return msg.isMyMsg;
+        if (myUserIdRef.current && msg.sender?._id)
+            return norm(msg.sender._id) === norm(myUserIdRef.current);
+        return false;
+    };
+
+    // Detect current user's ID from messages
+    const detectMyId = (messages = []) => {
+        if (myUserIdRef.current) return; // Already detected
+        const mine = messages.find((m) => m.isMyMsg === true); // Find first message from me
+        if (mine?.sender?._id) myUserIdRef.current = norm(mine.sender._id); // Store normalized ID in ref
+    };
+
+    // Sort messages in ascending order by creation time
+    const sortAsc = (msgs = []) =>
+        [...msgs].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+    // Replace temporary messages (with temp_ ID) with real messages from server
+    const replaceTempMsg = (messages = [], realMsg) => {
+        const realTime = new Date(realMsg.createdAt).getTime(); // Convert real message time to timestamp
+        const filtered = messages.filter((m) => {
+            if (!norm(m._id).startsWith("temp_")) return true; // Keep non-temp messages
+            const tempTime = new Date(m.createdAt).getTime(); // Convert temp message time
+            const timeDiff = Math.abs(tempTime - realTime); // Calculate time difference
+            if (timeDiff < 10000) { // If temp message is within 10s of real message
+                if (realMsg.type === "image" && m.type === "image") return false; // Remove temp image if real image exists
+                if (realMsg.type === "text" && m.content === realMsg.content) return false; // Remove temp text if content matches
+            }
+            return true; // Keep other messages
+        });
+        // Avoid duplicate: if real message already exists, return filtered
+        if (filtered.some((m) => norm(m._id) === norm(realMsg._id))) return filtered;
+        return [...filtered, realMsg]; // Otherwise, append real message
+    };
+
+    // Mark messages as delivered or seen up to a certain time
+    const markUpTo = (messages = [], time, { delivered = false, seen = false }) =>
+        messages.map((m) => {
+            if (!isMine(m)) return m; // Skip messages not from current user
+            if (seen && m.isRead) return m; // Skip messages already read
+            if (delivered && !seen && m.isDelivered) return m; // Skip messages already delivered (but not seen)
+            const ok = !time || new Date(m.createdAt) <= new Date(time); // Check if message is before the given time
+            if (!ok) return m; // Skip messages after the given time
+            return { 
+                ...m, 
+                ...(delivered ? { isDelivered: true } : {}), // Mark as delivered if requested
+                ...(seen ? { isDelivered: true, isRead: true } : {}) // Mark as read if requested
+            };
+    });
+
+
 };
