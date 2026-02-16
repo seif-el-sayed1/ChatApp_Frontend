@@ -124,6 +124,45 @@ export const ChatProvider = ({ children }) => {
                 if (!matchById && !matchByUser) return prev;
                 return applyBlock(prev);
             });
-            
 
+            // Update chats list with new message
+            setChats((prev) => {
+                const idx = prev.findIndex((c) => norm(c._id) === chatId);
+                if (idx === -1) {
+                    return [{
+                        _id: msg.chat,
+                        to: msg.sender,
+                        messages: [msg],
+                        lastMessageCreatedAt: msg.createdAt,
+                        unreadMessagesCount: msg.isMyMsg ? 0 : 1,
+                    }, ...prev];
+                }
+
+                const arr  = [...prev];
+                const chat = { ...arr[idx] };
+
+                // Add new message, remove duplicates/temp messages
+                chat.messages = [msg, ...(chat.messages || []).filter(
+                    (m) => norm(m._id) !== norm(msg._id) && !norm(m._id).startsWith("temp_")
+                )];
+
+                chat.lastMessageCreatedAt = msg.createdAt;
+                chat.unreadMessagesCount  = isMine(msg) || norm(chatId) === norm(activeChatIdRef.current)
+                    ? 0
+                    : (chat.unreadMessagesCount || 0) + 1;
+
+                arr.splice(idx, 1);
+                return [chat, ...arr];
+            });
+
+            // Replace temp message in the currently open chat
+            setOneChat((prev) => {
+                if (!prev || norm(prev._id) !== chatId) return prev;
+                return { ...prev, messages: replaceTempMsg(prev.messages || [], msg) };
+            });
+        });
+
+
+
+    return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
