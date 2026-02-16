@@ -11,3 +11,23 @@ export const UseChat = () => {
     if (!ctx) throw new Error("useChat must be used within ChatProvider");
     return ctx;
 };
+
+export const ChatProvider = ({ children }) => {
+    const socket = UseSocket(); 
+
+    // State variables
+    const [chats, setChats] = useState([]);
+    const [chatsPagination, setChatsPagination] = useState(null); 
+    const [oneChat, setOneChat] = useState(null); 
+    const [allUsers, setAllUsers] = useState([]); 
+    const [messagesPagination, setMessagesPagination] = useState(null); 
+    const [loading, setLoading] = useState(false); 
+    const [typingUsers, setTypingUsers] = useState({}); 
+    const [blockActionLoading, setBlockActionLoading] = useState(false); 
+
+    // Refs
+    const activeChatIdRef = useRef(null);
+    const myUserIdRef = useRef(null); 
+
+   
+};
