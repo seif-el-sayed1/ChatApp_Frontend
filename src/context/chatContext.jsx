@@ -202,6 +202,25 @@ export const ChatProvider = ({ children }) => {
             }
         });
 
+        socket.on("message-delivered", ({ chatId, messageTime }) => {
+            const cid = norm(chatId);
+            const upd = (msgs) => markUpTo(msgs, messageTime, { delivered: true });
+            
+            setChats((p) => p.map((c) => {
+                const matchId = norm(c._id) === cid || 
+                                norm(c._id) === norm(chatId?._id ?? chatId) ||
+                                norm(c._id) === norm(chatId?.toString?.());
+                return matchId ? { ...c, messages: upd(c.messages) } : c;
+            }));
+
+            setOneChat((p) => {
+                if (!p) return p;
+                const matchId = norm(p._id) === cid ||
+                                norm(p._id) === norm(chatId?._id ?? chatId) ||
+                                norm(p._id) === norm(chatId?.toString?.());
+                return matchId ? { ...p, messages: upd(p.messages) } : p;
+            });
+        });
 
         socket.on("messages-seen", ({ chatId, seenTime }) => {
             const cid = norm(chatId);
