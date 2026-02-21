@@ -72,24 +72,32 @@ export const ChatProvider = ({ children }) => {
     // Mark messages as delivered or seen up to a certain time
     const markUpTo = (messages = [], time, { delivered = false, seen = false }) =>
         messages.map((m) => {
-            if (!isMine(m)) return m; // Skip messages not from current user
-            if (seen && m.isRead) return m; // Skip messages already read
-            if (delivered && !seen && m.isDelivered) return m; // Skip messages already delivered (but not seen)
-            const ok = !time || new Date(m.createdAt) <= new Date(time); // Check if message is before the given time
-            if (!ok) return m; // Skip messages after the given time
+            if (!isMine(m)) return m;
+            if (seen && m.isRead) return m;
+            if (delivered && !seen && m.isDelivered) return m;
+            const msgTime  = m.createdAt ? new Date(m.createdAt).getTime() : 0;
+            const markTime = time ? new Date(time).getTime() : Infinity;
+            if (msgTime > markTime) return m;
             return { 
                 ...m, 
-                ...(delivered ? { isDelivered: true } : {}), // Mark as delivered if requested
-                ...(seen ? { isDelivered: true, isRead: true } : {}) // Mark as read if requested
+                ...(delivered ? { isDelivered: true } : {}),
+                ...(seen ? { isDelivered: true, isRead: true } : {})
             };
     });
 
     // Socket event handlers
     useEffect(() => {
-        if (!socket?.isConnected) return;
-
+        if (!socket) return;
+        
         socket.on("message", (msg) => {
             const chatId = norm(msg.chat);
+
+            if (msg.isMyMsg && !msg.isDelivered && msg.type !== "label") {
+                const receiverId = msg.receiver?._id;
+                if (receiverId && socket.isUserOnline(receiverId)) {
+                    msg.isDelivered = true;
+                }
+            }
 
             // Mark as delivered if incoming
             if (!msg.isMyMsg && !msg.isDelivered && msg.type !== "label") {
@@ -162,24 +170,6 @@ export const ChatProvider = ({ children }) => {
             });
         });
 
-        socket.on("new-chat", (newChat) => {
-            // Update the chats list in the sidebar
-            setChats((prev) => {
-                // If the chat already exists, do nothing
-                if (prev.some((c) => norm(c._id) === norm(newChat._id))) return prev;
-                // Otherwise, add the new chat to the top
-                return [newChat, ...prev];
-            });
-            // If the first message in the new chat was sent by me, open this chat
-            if (newChat.messages?.[0]?.isMyMsg) setOneChat(newChat);
-        });
-
-        socket.on("message-delivered", ({ chatId, messageTime }) => {
-            const cid = norm(chatId);
-            const upd = (msgs) => markUpTo(msgs, messageTime, { delivered: true });
-            setChats((p) => p.map((c) => norm(c._id) === cid ? { ...c, messages: upd(c.messages) } : c));
-            setOneChat((p) => p && norm(p._id) === cid ? { ...p, messages: upd(p.messages) } : p);
-        });
 
         socket.on("messages-seen", ({ chatId, seenTime }) => {
             const cid = norm(chatId);
@@ -199,7 +189,7 @@ export const ChatProvider = ({ children }) => {
             ["message","new-chat","message-delivered","messages-seen","typing","stop-typing"]
                 .forEach((e) => socket.off(e));
         };
-    }, [socket?.isConnected]);
+    }, [socket]);
 
     // APIs 
     const handleGetAllUsers = async (page = 1, limit = 10, search = "") => {
@@ -276,66 +266,6 @@ export const ChatProvider = ({ children }) => {
         finally { setLoading(false); }
     };
 
-    // ── send media ────────────────────────────────────────────────────────────
-    const handleSendMedia = async ({ files, chatId, receiverId }) => {
-        if (!files?.length) return;
-
-        const previews = files.map((f, i) => ({
-            _id: `temp_img_${Date.now()}_${i}`,
-            chat: chatId,
-            content: URL.createObjectURL(f),
-            type: "image",
-            isMyMsg: true,
-            isDelivered: false,
-            isRead: false,
-            createdAt: new Date().toISOString(),
-            _isBlob: true,
-        }));
-        previews.forEach((p) => addOptimisticMessage(p));
-
-        try {
-            const formData = new FormData();
-            files.forEach((f) => formData.append("media", f));
-            if (chatId)     formData.append("chatId",     chatId);
-            if (receiverId) formData.append("receiverId", receiverId);
-
-            const res = await sendMediaMessage({ media: formData, chatId, receiverId });
-
-            if (res?.success && res?.messages) {
-                setOneChat((prev) => {
-                    if (!prev) return prev;
-                    const withoutTemps = (prev.messages || []).filter(
-                        (m) => !previews.some((p) => p._id === m._id)
-                    );
-                    return { ...prev, messages: sortAsc(withoutTemps) };
-                });
-
-                if (chatId) {
-                    const lastRealMessage = res.messages[res.messages.length - 1];
-                    if (lastRealMessage) {
-                        setChats((prevChats) => {
-                            const chatIndex = prevChats.findIndex((c) => norm(c._id) === norm(chatId));
-                            if (chatIndex === -1) return prevChats;
-                            const updatedChats = [...prevChats];
-                            const targetChat   = { ...updatedChats[chatIndex] };
-                            if (!targetChat.lastMessageCreatedAt ||
-                                new Date(lastRealMessage.createdAt) > new Date(targetChat.lastMessageCreatedAt)) {
-                                targetChat.lastMessageCreatedAt = lastRealMessage.createdAt;
-                            }
-                            updatedChats.splice(chatIndex, 1);
-                            return [targetChat, ...updatedChats];
-                        });
-                    }
-                }
-            }
-        } catch (e) {
-            console.error("sendMedia error:", e);
-            setOneChat((prev) => {
-                if (!prev) return prev;
-                return { ...prev, messages: (prev.messages || []).filter((m) => !previews.some((p) => p._id === m._id)) };
-            });
-        }
-    };
 
     const addOptimisticMessage = (tempMsg) => {
         setOneChat((prev) => {
@@ -361,7 +291,7 @@ export const ChatProvider = ({ children }) => {
         activeChatIdRef.current = null;
     };
 
-    // ── block / unblock ───────────────────────────────────────────────────────
+    //  block / unblock
     const handleBlock = async (userId) => {
         setBlockActionLoading(true);
         try {
