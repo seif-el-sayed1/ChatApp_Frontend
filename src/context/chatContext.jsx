@@ -76,7 +76,7 @@ export const ChatProvider = ({ children }) => {
             if (seen && m.isRead) return m;
             if (delivered && !seen && m.isDelivered) return m;
             const msgTime  = m.createdAt ? new Date(m.createdAt).getTime() : 0;
-            const markTime = time ? new Date(time).getTime() : Infinity;
+            const markTime = time        ? new Date(time).getTime()        : Infinity;
             if (msgTime > markTime) return m;
             return { 
                 ...m, 
@@ -170,6 +170,38 @@ export const ChatProvider = ({ children }) => {
             });
         });
 
+        socket.on("new-chat", (rawChat) => {
+            let newChat = rawChat;
+
+            const firstMsg = newChat.messages?.[0];
+            if (firstMsg?.isMyMsg && !firstMsg.isDelivered) {
+                const receiverId = firstMsg.receiver?._id;
+                if (receiverId && socket.isUserOnline(receiverId)) {
+                    newChat = {
+                        ...newChat,
+                        messages: [{ ...firstMsg, isDelivered: true }]
+                    };
+                }
+            }
+
+            // Update the chats list in the sidebar
+            setChats((prev) => {
+                if (prev.some((c) => norm(c._id) === norm(newChat._id))) return prev;
+                return [newChat, ...prev];
+            });
+
+            if (newChat.messages?.[0]?.isMyMsg) {
+                setOneChat((prev) => {
+                    const realMsg = newChat.messages[0];
+                    if (!prev) return newChat;
+                    return {
+                        ...newChat,
+                        messages: replaceTempMsg(prev.messages || [], realMsg)
+                    };
+                });
+            }
+        });
+
 
         socket.on("messages-seen", ({ chatId, seenTime }) => {
             const cid = norm(chatId);
@@ -181,6 +213,7 @@ export const ChatProvider = ({ children }) => {
         socket.on("typing", ({ chatId, userId, userName }) =>
             setTypingUsers((p) => ({ ...p, [norm(chatId)]: { userId, userName } }))
         );
+
         socket.on("stop-typing", ({ chatId }) =>
             setTypingUsers((p) => { const n = { ...p }; delete n[norm(chatId)]; return n; })
         );
