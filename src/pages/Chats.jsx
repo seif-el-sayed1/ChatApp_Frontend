@@ -14,7 +14,7 @@ const fmtTime = (iso) => {
   if (diff < 1)    return "now";
   if (diff < 60)   return `${diff}m`;
   if (diff < 1440) return `${Math.floor(diff / 60)}h`;
-  return new Date(iso).toLocaleDateString("ar-EG");
+  return new Date(iso).toLocaleDateString("en-US");
 };
 
 // for message time
