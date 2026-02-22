@@ -318,6 +318,87 @@ export const ChatProvider = ({ children }) => {
         finally { setLoading(false); }
     };
 
+    // send media messages 
+    const handleSendMedia = async ({ files, chatId, receiverId, isReceiverOnline = false }) => {
+        if (!files?.length) return;
+
+        const previews = files.map((f, i) => ({
+            _id: `temp_img_${Date.now()}_${i}`,
+            chat: chatId,
+            content: URL.createObjectURL(f),
+            type: "image",
+            isMyMsg: true,
+            isDelivered: isReceiverOnline, 
+            isRead: false,
+            createdAt: new Date().toISOString(),
+            _isBlob: true,
+        }));
+        previews.forEach((p) => addOptimisticMessage(p));
+
+        try {
+            const formData = new FormData();
+            files.forEach((f) => formData.append("media", f));
+            if (chatId) formData.append("chatId", chatId);
+            if (receiverId) formData.append("receiverId", receiverId);
+
+            const res = await sendMediaMessage({ media: formData, chatId, receiverId });
+
+            if (res?.success) {
+                const realMessages = res.messages || res.chat?.messages || [];
+
+                setOneChat((prev) => {
+                    const base = prev || res.chat || {};
+                    const withoutTemps = (base.messages || []).filter(
+                        (m) => !previews.some((p) => p._id === m._id)
+                    );
+                    const existingIds = new Set(withoutTemps.map((m) => norm(m._id)));
+
+                    const newOnes = realMessages.map((rm) => {
+                        const existing = withoutTemps.find(m => norm(m._id) === norm(rm._id));
+                        if (existing?.isDelivered && !rm.isDelivered) {
+                            return { ...rm, isDelivered: true };
+                        }
+                        return rm;
+                    }).filter((m) => !existingIds.has(norm(m._id)));
+
+                    return { ...base, messages: sortAsc([...withoutTemps, ...newOnes]) };
+                });
+
+                const lastRealMessage = realMessages[realMessages.length - 1];
+                const resolvedChatId = chatId || res.chat?._id;
+                if (lastRealMessage && resolvedChatId) {
+                    setChats((prevChats) => {
+                        const chatIndex = prevChats.findIndex((c) => norm(c._id) === norm(resolvedChatId));
+                        if (chatIndex === -1) return prevChats;
+                        const updatedChats = [...prevChats];
+                        const targetChat = { ...updatedChats[chatIndex] };
+
+                        const existingIds = new Set((targetChat.messages || []).map(m => norm(m._id)));
+                        const newOnes = realMessages.filter(m => !existingIds.has(norm(m._id)));
+                        if (newOnes.length) {
+                            targetChat.messages = [
+                                ...newOnes,
+                                ...(targetChat.messages || []).filter(m => !norm(m._id).startsWith("temp_"))
+                            ];
+                        }
+
+                        if (!targetChat.lastMessageCreatedAt ||
+                            new Date(lastRealMessage.createdAt) > new Date(targetChat.lastMessageCreatedAt)) {
+                            targetChat.lastMessageCreatedAt = lastRealMessage.createdAt;
+                        }
+                        updatedChats.splice(chatIndex, 1);
+                        return [targetChat, ...updatedChats];
+                    });
+                }
+            }
+        } catch (e) {
+            console.error("sendMedia error:", e);
+            setOneChat((prev) => {
+                if (!prev) return prev;
+                return { ...prev, messages: (prev.messages || []).filter((m) => !previews.some((p) => p._id === m._id)) };
+            });
+        }
+    };
 
     const addOptimisticMessage = (tempMsg) => {
         setOneChat((prev) => {
@@ -409,5 +490,7 @@ export const ChatProvider = ({ children }) => {
         handleBlock, handleUnblock
     };
 
-    return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
+    return <ChatContext.Provider value={value}>
+        {children}
+    </ChatContext.Provider>;
 };
