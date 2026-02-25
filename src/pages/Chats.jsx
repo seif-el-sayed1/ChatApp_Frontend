@@ -164,6 +164,7 @@ export const Chats = () => {
 
   const {
     isConnected, isUserOnline,
+    on, off,
     joinChat, leaveChat,
     sendMessage, startTyping, stopTyping
   } = UseSocket();
@@ -235,6 +236,17 @@ export const Chats = () => {
     markMessagesAsRead(selectedChatId);
     prevMsgCount.current = 0;
     return () => { stopTyping(selectedChatId); };
+  }, [selectedChatId]);
+
+  useEffect(() => {
+    if (!selectedChatId) return;
+    const handler = (msg) => {
+      if (!msg.isMyMsg && norm(msg.chat) === norm(selectedChatId)) {
+        markMessagesAsRead(selectedChatId);
+      }
+    };
+    on("message", handler);
+    return () => off("message", handler);
   }, [selectedChatId]);
 
   // Scroll to bottom on first load (instant) or when a new message arrives and user is near the bottom
