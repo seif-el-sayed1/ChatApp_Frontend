@@ -163,10 +163,22 @@ export const ChatProvider = ({ children }) => {
                 return [chat, ...arr];
             });
 
-            // Replace temp message in the currently open chat
             setOneChat((prev) => {
-                if (!prev || norm(prev._id) !== chatId) return prev;
-                return { ...prev, messages: replaceTempMsg(prev.messages || [], msg) };
+                if (!prev) {
+                    if (norm(activeChatIdRef.current) === chatId) {
+                        return {
+                            _id: msg.chat,
+                            to: msg.sender,
+                            messages: [msg],
+                            lastMessageCreatedAt: msg.createdAt,
+                        };
+                    }
+                    return prev;
+                }
+                const matchById = norm(prev._id) === chatId;
+                const matchByUser = norm(prev.to?._id) === norm(msg.sender?._id ?? msg.sender);
+                if (!matchById && !matchByUser) return prev;
+                return { ...prev, _id: prev._id || msg.chat, messages: replaceTempMsg(prev.messages || [], msg) };
             });
         });
 
@@ -197,6 +209,19 @@ export const ChatProvider = ({ children }) => {
                     return {
                         ...newChat,
                         messages: replaceTempMsg(prev.messages || [], realMsg)
+                    };
+                });
+            } else {
+                setOneChat((prev) => {
+                    if (!prev) return prev;
+                    const matchByUser = norm(prev.to?._id) === norm(newChat.to?._id);
+                    if (!matchByUser) return prev;
+                    return {
+                        ...prev,
+                        _id: newChat._id,
+                        messages: sortAsc([...(prev.messages || []), ...(newChat.messages || []).filter(
+                            (m) => !(prev.messages || []).some((pm) => norm(pm._id) === norm(m._id))
+                        )]),
                     };
                 });
             }
@@ -412,6 +437,7 @@ export const ChatProvider = ({ children }) => {
         setChats((prev) =>
             prev.map((c) => norm(c._id) === norm(chatId) ? { ...c, unreadMessagesCount: 0 } : c)
         );
+        socket.emit("messages-seen", { chatId });
     };
 
     const resetOneChat = () => {
